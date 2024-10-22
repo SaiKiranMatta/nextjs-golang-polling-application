@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { usePasskeyAuth } from "../hooks/usePasskeyAuth";
 
-export function LoginForm() {
+interface LoginFormProps {
+    callbackUrl: string;
+}
+
+export function LoginForm({ callbackUrl }: LoginFormProps) {
     const [email, setEmail] = useState("");
     const { login, error } = usePasskeyAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        await login(email);
+        await login(email, callbackUrl);
     };
 
     return (
@@ -28,7 +32,7 @@ export function LoginForm() {
 
             <button
                 type="submit"
-                className="w-full bg-blue-800 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-300"
+                className="w-full bg-blue-800 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition duration-300"
             >
                 Login
             </button>

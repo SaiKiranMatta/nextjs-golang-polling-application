@@ -3,14 +3,17 @@
 import { useState } from "react";
 import { usePasskeyAuth } from "../hooks/usePasskeyAuth";
 
-export function RegisterForm() {
+interface RegisterFormProps {
+    callbackUrl: string;
+}
+export function RegisterForm({ callbackUrl }: RegisterFormProps) {
     const [email, setEmail] = useState("");
     const [name, setName] = useState("");
     const { register, error } = usePasskeyAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        await register(email, name);
+        await register(email, name, callbackUrl);
     };
 
     return (
@@ -42,7 +45,7 @@ export function RegisterForm() {
 
             <button
                 type="submit"
-                className="w-full bg-blue-800 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-300"
+                className="w-full bg-blue-800 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition duration-300"
             >
                 Register
             </button>

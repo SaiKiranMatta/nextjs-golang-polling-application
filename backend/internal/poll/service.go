@@ -27,7 +27,7 @@ func NewPollService(db *mongo.Database, voteService *vote.VoteService, userServi
 	}
 }
 
-func (s *PollService) CreatePoll(ctx context.Context, question string, options []string, createdBy primitive.ObjectID, multipleChoices bool) (*Poll, error) {
+func (s *PollService) CreatePoll(ctx context.Context, question string, description string, options []string, createdBy primitive.ObjectID, multipleChoices bool) (*Poll, error) {
 	pollOptions := make([]Option, len(options))
 	for i, opt := range options {
 		pollOptions[i] = Option{
@@ -40,6 +40,7 @@ func (s *PollService) CreatePoll(ctx context.Context, question string, options [
 	poll := &Poll{
 		ID:              primitive.NewObjectID(),
 		Question:        question,
+        Description:     description,
 		Options:         pollOptions,
 		CreatedBy:       createdBy,
 		CreatedAt:       time.Now(),
@@ -114,6 +115,16 @@ func (s *PollService) Vote(ctx context.Context, pollID, userID primitive.ObjectI
 		return errors.New("multiple choices not allowed for this poll")
 	}
 
+	existingVote, err := s.voteService.GetVote(ctx, pollID, userID)
+    if err != nil && err != mongo.ErrNoDocuments {
+        return err
+    }
+
+    if existingVote != nil {
+        // User has already voted; update their vote
+        return s.updateVote(ctx, existingVote, optionIDs)
+    }
+
 	// Use VoteService to add the vote
 	err = s.voteService.AddVote(ctx, pollID, userID, optionIDs)
 	if err != nil {
@@ -147,7 +158,66 @@ func (s *PollService) Vote(ctx context.Context, pollID, userID primitive.ObjectI
 	return nil
 }
 
-func (s *PollService) UpdatePollStatus(ctx context.Context, pollID primitive.ObjectID, active bool) error {
+func (s *PollService) updateVote(ctx context.Context, existingVote *vote.Vote, newOptionIDs []primitive.ObjectID) error {
+    // Decrease counts for the old options
+    update := bson.M{
+        "$inc": bson.M{
+            "options.$[oldElem].count": -1,
+        },
+    }
+
+    _, err := s.pollCollection.UpdateOne(
+        ctx,
+        bson.M{"_id": existingVote.PollID},
+        update,
+        options.Update().SetArrayFilters(
+            options.ArrayFilters{
+                Filters: []interface{}{
+                    bson.M{"oldElem._id": bson.M{"$in": existingVote.OptionIDs}},
+                },
+            },
+        ),
+    )
+    if err != nil {
+        return err
+    }
+
+    // Create and insert the new vote
+    err = s.voteService.UpdateVote(ctx, existingVote, newOptionIDs)
+    if err != nil {
+        return err
+    }
+
+    // Increase counts for the new options
+    update = bson.M{
+        "$inc": bson.M{
+            "options.$[newElem].count": 1,
+        },
+    }
+
+    _, err = s.pollCollection.UpdateOne(
+        ctx,
+        bson.M{"_id": existingVote.PollID},
+        update,
+        options.Update().SetArrayFilters(
+            options.ArrayFilters{
+                Filters: []interface{}{
+                    bson.M{"newElem._id": bson.M{"$in": newOptionIDs}},
+                },
+            },
+        ),
+    )
+
+    return err
+}
+
+func (s *PollService) UpdatePollStatus(ctx context.Context, pollID primitive.ObjectID, userID primitive.ObjectID, active bool) error {
+    poll, err := s.GetPoll(ctx, pollID)
+
+    if poll.CreatedBy != userID {
+        return errors.New("unauthorized: user is not the creator of the poll")
+    }
+
     filter := bson.M{"_id": pollID}
     update := bson.M{
         "$set": bson.M{
@@ -155,7 +225,6 @@ func (s *PollService) UpdatePollStatus(ctx context.Context, pollID primitive.Obj
         },
     }
 
-    // Update the poll in the database
     result, err := s.pollCollection.UpdateOne(ctx, filter, update)
     if err != nil {
         return err
@@ -166,4 +235,92 @@ func (s *PollService) UpdatePollStatus(ctx context.Context, pollID primitive.Obj
     }
 
     return nil
+}
+
+
+
+// Update this method in PollService struct in poll/service.go
+func (s *PollService) ClearPollVotes(ctx context.Context, pollID primitive.ObjectID, userID primitive.ObjectID) error {
+    poll, err := s.GetPoll(ctx, pollID)
+
+    if poll.CreatedBy != userID {
+        return errors.New("unauthorized: user is not the creator of the poll")
+    }
+
+    filter := bson.M{"_id": pollID}
+    update := bson.M{
+        "$set": bson.M{
+            "options.$[].count": 0,
+        },
+    }
+    
+    result, err := s.pollCollection.UpdateOne(ctx, filter, update)
+    if err != nil {
+        return err
+    }
+    if result.MatchedCount == 0 {
+        return errors.New("poll not found")
+    }
+
+    _, err = s.voteService.DeletePollVotes(ctx, pollID)
+    if err != nil {
+        return err
+    }
+
+    return nil
+}
+
+func (s *PollService) GetAllPolls(ctx context.Context, status string, skip int, limit int) ([]*Poll, int64, error) {
+    
+    
+    // Build the filter based on status
+    filter := bson.M{}
+    if status == "active" {
+        filter["active"] = true
+    } else if status == "closed" {
+        filter["active"] = false
+    }
+    
+    // Get total count for pagination
+    total, err := s.pollCollection.CountDocuments(ctx, filter)
+    if err != nil {
+        return nil, 0, err
+    }
+    
+    // Set up options for pagination and sorting
+    opts := options.Find().
+        SetSkip(int64(skip)).
+        SetLimit(int64(limit)).
+        SetSort(bson.D{{Key: "created_at", Value: -1}}) // Sort by creation date, newest first
+    
+    // Execute the query
+    cursor, err := s.pollCollection.Find(ctx, filter, opts)
+    if err != nil {
+        return nil, 0, err
+    }
+    defer cursor.Close(ctx)
+    
+    // Decode the results
+    var polls []*Poll
+    if err = cursor.All(ctx, &polls); err != nil {
+        return nil, 0, err
+    }
+    
+        return polls, total, nil
+}
+
+
+// GetActivePollsCount returns the total number of active polls
+func (s *PollService) GetActivePollsCount(ctx context.Context) (int64, error) {
+    return s.pollCollection.CountDocuments(ctx, bson.M{"active": true})
+}
+
+// GetClosedPollsCount returns the total number of closed polls
+func (s *PollService) GetClosedPollsCount(ctx context.Context) (int64, error) {
+    return s.pollCollection.CountDocuments(ctx, bson.M{"active": false})
+}
+
+// GetTotalPollsCount returns the total number of polls
+func (s *PollService) GetTotalPollsCount(ctx context.Context) (int64, error) {
+    return s.pollCollection.CountDocuments(ctx, bson.M{})
 }

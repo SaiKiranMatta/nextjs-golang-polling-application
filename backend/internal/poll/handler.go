@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -30,6 +32,7 @@ func NewPollHandler(pollService *PollService) *PollHandler {
 func (h *PollHandler) CreatePoll(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Question        string   `json:"question"`
+        Description     string   `json:"description"`
 		Options         []string `json:"options"`
 		UserID          string   `json:"user_id"`
 		MultipleChoices bool     `json:"multiple_choices"`
@@ -46,7 +49,7 @@ func (h *PollHandler) CreatePoll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	poll, err := h.pollService.CreatePoll(r.Context(), req.Question, req.Options, userID, req.MultipleChoices)
+	poll, err := h.pollService.CreatePoll(r.Context(), req.Question, req.Description, req.Options, userID, req.MultipleChoices)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -216,7 +219,7 @@ func (h *PollHandler) StreamPollUpdates(w http.ResponseWriter, r *http.Request) 
     }()
 
     // Send initial connection message
-    fmt.Fprintf(w, "data: {\"status\": \"connected\"}\n\n")
+    // fmt.Fprintf(w, "data: {\"status\": \"connected\"}\n\n")
     flusher.Flush()
 
     // Stream updates to the client
@@ -275,6 +278,7 @@ func (h *PollHandler) notifyClients(pollID string, poll *Poll) {
 
 type PollStatusUpdateRequest struct {
     Active bool `json:"active"` // The new status (true for enable, false for disable)
+    UserID primitive.ObjectID `json:"userId"`
 }
 
 // TogglePollStatus handles enabling/disabling a poll
@@ -294,7 +298,7 @@ func (h *PollHandler) TogglePollStatus(w http.ResponseWriter, r *http.Request) {
     }
 
     // Call the poll service to update the poll status
-    err = h.pollService.UpdatePollStatus(r.Context(), pollID, req.Active)
+    err = h.pollService.UpdatePollStatus(r.Context(), pollID,req.UserID, req.Active)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
@@ -314,4 +318,80 @@ func (h *PollHandler) TogglePollStatus(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(map[string]string{
         "message": "Poll status updated successfully",
     })
+}
+
+func (h *PollHandler) ClearPollVotes(w http.ResponseWriter, r *http.Request) {
+    pollID, err := primitive.ObjectIDFromHex(mux.Vars(r)["id"])
+    if err != nil {
+        http.Error(w, "Invalid poll ID", http.StatusBadRequest)
+        return
+    }
+
+    var requestBody struct {
+        UserID primitive.ObjectID `json:"userId"`
+    }
+
+    err = json.NewDecoder(r.Body).Decode(&requestBody)
+    if err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    err = h.pollService.ClearPollVotes(r.Context(), pollID, requestBody.UserID)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    updatedPoll, err := h.pollService.GetPoll(r.Context(), pollID)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    h.notifyClients(pollID.Hex(), updatedPoll)
+
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]string{
+        "message": "Poll votes cleared successfully",
+    })
+}
+
+
+func (h *PollHandler) GetAllPolls(w http.ResponseWriter, r *http.Request) {
+    // Get query parameters
+    status := r.URL.Query().Get("status") // "active", "closed", or "all"
+    page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+    limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+    // Set defaults if not provided
+    if page < 1 {
+        page = 1
+    }
+    if limit < 1 {
+        limit = 10
+    }
+
+    // Calculate skip
+    skip := (page - 1) * limit
+
+    polls, total, err := h.pollService.GetAllPolls(r.Context(), status, skip, limit)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    response := struct {
+        Polls       []*Poll `json:"polls"`
+        Total       int64   `json:"total"`
+        CurrentPage int     `json:"currentPage"`
+        TotalPages  int     `json:"totalPages"`
+    }{
+        Polls:       polls,
+        Total:       total,
+        CurrentPage: page,
+        TotalPages:  int(math.Ceil(float64(total) / float64(limit))),
+    }
+
+    json.NewEncoder(w).Encode(response)
 }

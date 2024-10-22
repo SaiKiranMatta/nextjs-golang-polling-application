@@ -1,9 +1,17 @@
 import React, { useState } from "react";
+import { Button } from "../ui/button";
+import { cn } from "@/lib/utils";
 
-const ShareButton = ({ shareUrl }: { shareUrl: string }) => {
+const ShareButton = ({
+    shareUrl,
+    className,
+}: {
+    shareUrl: string;
+    className?: string;
+}) => {
     const [isCopied, setIsCopied] = useState(false);
 
-    const handleCopy = async () => {
+    const handleCopy = async (e: React.MouseEvent) => {
         try {
             await navigator.clipboard.writeText(shareUrl);
             setIsCopied(true);
@@ -14,14 +22,15 @@ const ShareButton = ({ shareUrl }: { shareUrl: string }) => {
     };
 
     return (
-        <button
-            className="bg-green-600 text-white py-2 px-4 rounded-md w-36 hover:bg-green-500 focus:outline-none"
+        <Button
+            variant={"outline"}
+            className={cn("w-36", className)}
             onClick={handleCopy}
             type="button"
             aria-label={isCopied ? "Link copied!" : "Share poll"}
         >
             {isCopied ? "Link Copied!" : "Share Poll"}
-        </button>
+        </Button>
     );
 };
 
