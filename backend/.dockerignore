@@ -1,0 +1,38 @@
+# Exclude Go build outputs
+*.exe
+*.out
+*.test
+*.o
+*.a
+
+# Exclude binary files
+/bin/
+/cmd/*.bin
+
+# Ignore vendor directories if not using vendoring
+/vendor/
+
+# Ignore version control system directories
+.git/
+.gitignore
+
+
+# Ignore temporary files and directories
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*.old
+.DS_Store
+
+# Exclude test data
+/testdata/
+
+# Ignore IDE/editor files
+.vscode/
+.idea/
+*.iml
+
+# Ignore Dockerfiles and related files outside the build context
+Dockerfile*
