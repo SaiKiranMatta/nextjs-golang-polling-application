@@ -3,7 +3,6 @@
 import ShareButton from "@/components/dashboard/ShareUrl";
 import { usePasskeyAuth } from "@/hooks/usePasskeyAuth";
 import { useSessionStore } from "@/store/useSessionStore";
-import { Poll } from "@/types/poll";
 import { NextPage } from "next";
 import { useEffect, useState } from "react";
 import {
@@ -30,7 +29,7 @@ const PollComponent: NextPage<ClientPollComponentProps> = ({
     initialPollData,
     pollId,
 }) => {
-    const [user_id, email, checkSession] = useSessionStore(
+    const [user_id, email] = useSessionStore(
         useShallow((state) => [state.user_id, state.email, state.checkSession])
     );
     const { verifyPasskey } = usePasskeyAuth();

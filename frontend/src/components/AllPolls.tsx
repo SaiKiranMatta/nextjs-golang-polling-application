@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Poll, PollsResponse } from "@/types/poll";
+import {  PollsResponse } from "@/types/poll";
 
 import { Button } from "@/components/ui/button";
 import {

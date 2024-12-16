@@ -20,6 +20,7 @@ async function getPollData(pollId: string): Promise<PollWithUserVote> {
             console.log(fullUrl);
             redirect(`/auth?callbackUrl=${encodeURIComponent(currentPath)}`);
         } catch (error) {
+            console.log(error)
             // Fallback to a default redirect
             redirect("/auth");
         }

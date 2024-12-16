@@ -18,7 +18,10 @@ export const POST = async (request: Request) => {
         return new NextResponse(responseBody, {
             status: response.status,
         });
-    } catch (err: any) {
-        return new NextResponse(`Error: ${err.message}`, { status: 500 });
+    } catch (err: unknown) {
+        if (err instanceof Error) {
+            return new NextResponse(`Error: ${err.message}`, { status: 500 });
+        }
+        return new NextResponse("An unknown error occurred", { status: 500 });
     }
 };

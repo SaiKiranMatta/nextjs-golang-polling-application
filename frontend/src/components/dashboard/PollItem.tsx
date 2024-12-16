@@ -13,7 +13,6 @@ const PollItem = ({ poll, email }: { poll: Poll; email: string }) => {
     const [isActive, setIsActive] = useState(poll.active);
     const frontendUrl =
         process.env.NEXT_PUBLIC_FRONTEND_URL || "http://localhost:3000";
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
     const shareUrl = `${frontendUrl}/polls/${poll.id}`;
     const { verifyPasskey } = usePasskeyAuth();
 

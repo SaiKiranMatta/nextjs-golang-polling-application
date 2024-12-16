@@ -13,8 +13,7 @@ import (
 )
 
 var (
-	host     = os.Getenv("DB_HOST")
-	port     = os.Getenv("DB_PORT")
+	connection_string = os.Getenv("DB_CONNECTION_STRING")
 	dbName   = os.Getenv("DB_DATABASE_NAME")
 )
 
@@ -22,7 +21,7 @@ func New() (*mongo.Database, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	clientOptions := options.Client().ApplyURI(fmt.Sprintf("mongodb://%s:%s", host, port))
+	clientOptions := options.Client().ApplyURI(connection_string)
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to MongoDB: %v", err)

@@ -109,6 +109,7 @@ const CreatePollForm: React.FC<CreatePollFormProps> = ({ user_id, email }) => {
                 setError(data.message || "Failed to create poll.");
             }
         } catch (err) {
+            console.log(err)
             setError("An error occurred. Please try again.");
         } finally {
             setIsSubmitting(false);

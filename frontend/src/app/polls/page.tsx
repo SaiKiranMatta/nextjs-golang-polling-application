@@ -1,28 +1,6 @@
 import AllPolls from "@/components/AllPolls";
 import { Suspense } from "react";
 
-export default async function PollsPage({
-    searchParams,
-}: {
-    searchParams?: {
-        status?: string;
-        page?: string;
-    };
-}) {
-    const status = searchParams?.status || "all";
-    const page = Number(searchParams?.page) || 1;
-    const pollsData = await fetchPolls(status, page);
-
-    return (
-        <div className="container mx-auto px-4 py-8">
-            <h1 className="text-2xl font-bold mb-6">All Polls</h1>
-            <Suspense fallback={<PollsLoading />}>
-                <AllPolls initialData={pollsData} />
-            </Suspense>
-        </div>
-    );
-}
-
 function PollsLoading() {
     return (
         <div className="space-y-6">
@@ -36,7 +14,7 @@ function PollsLoading() {
     );
 }
 
-export async function fetchPolls(
+async function fetchPolls(
     status: string,
     page: number,
     limit: number = 10
@@ -57,4 +35,27 @@ export async function fetchPolls(
     }
 
     return response.json();
+}
+
+
+export default async function PollsPage({
+    searchParams,
+}: {
+    searchParams?: {
+        status?: string;
+        page?: string;
+    };
+}) {
+    const status = searchParams?.status || "all";
+    const page = Number(searchParams?.page) || 1;
+    const pollsData = await fetchPolls(status, page);
+
+    return (
+        <div className="container mx-auto px-4 py-8">
+            <h1 className="text-2xl font-bold mb-6">All Polls</h1>
+            <Suspense fallback={<PollsLoading />}>
+                <AllPolls initialData={pollsData} />
+            </Suspense>
+        </div>
+    );
 }
