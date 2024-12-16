@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 const next_auth_url = process.env.NEXTAUTH_URL;
 export const { handlers, signIn, signOut, auth } = NextAuth({
+    trustHost: true,
     providers: [
         CredentialsProvider({
             name: "Passkey",
@@ -10,8 +11,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 name: { label: "Name", type: "text" },
                 action: { label: "Action", type: "hidden" },
             },
-            async authorize(credentials, req) {
-                const { email, name, action } = credentials as {
+            async authorize(credentials) {
+                const { email, action } = credentials as {
                     email: string;
                     name: string;
                     action: string;
