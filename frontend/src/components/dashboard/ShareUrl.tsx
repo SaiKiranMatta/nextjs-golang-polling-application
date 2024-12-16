@@ -11,7 +11,7 @@ const ShareButton = ({
 }) => {
     const [isCopied, setIsCopied] = useState(false);
 
-    const handleCopy = async (e: React.MouseEvent) => {
+    const handleCopy = async () => {
         try {
             await navigator.clipboard.writeText(shareUrl);
             setIsCopied(true);
