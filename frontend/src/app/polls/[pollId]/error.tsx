@@ -7,6 +7,7 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  console.log(error)
   return (
     <div className="max-w-4xl mx-auto pt-16 p-6 text-center">
       <h2 className="text-2xl font-bold text-red-600 mb-4">

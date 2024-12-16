@@ -1,9 +1,6 @@
-import { NextPage } from "next";
 import Link from "next/link";
 
-interface Props {}
-
-const Page: NextPage<Props> = ({}) => {
+const Page = ({}) => {
     return (
         <div className="relative min-h-[calc(100vh_-_80px)] flex items-center justify-center bg-gradient-to-r from-purple-800 to-indigo-900">
             {/* Glassy background container */}
